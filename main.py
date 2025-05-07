@@ -1,37 +1,37 @@
-
 import os
-import logging
 import requests
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, MessageHandler, filters, ContextTypes
 
-BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-VK_GROUP_ID = os.getenv("VK_GROUP_ID")
-VK_ACCESS_TOKEN = os.getenv("VK_ACCESS_TOKEN")
+VK_ACCESS_TOKEN = os.environ.get("VK_ACCESS_TOKEN")
+VK_GROUP_ID = os.environ.get("VK_GROUP_ID")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 
-logging.basicConfig(level=logging.INFO)
-
-async def forward_to_vk(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.channel_post:
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.text:
         return
 
-    text = update.channel_post.text_html or update.channel_post.caption_html
-    if not text:
-        return
+    message = update.message
+    text = message.text
 
-    response = requests.post(
-        "https://api.vk.com/method/wall.post",
-        params={
-            "owner_id": f"-{VK_GROUP_ID}",
-            "from_group": 1,
-            "message": text,
-            "access_token": VK_ACCESS_TOKEN,
-            "v": "5.199"
-        }
-    )
-    logging.info(f"VK response: {response.text}")
+    # Отправка в ВКонтакте
+    vk_api_url = "https://api.vk.com/method/wall.post"
+    params = {
+        "access_token": VK_ACCESS_TOKEN,
+        "v": "5.199",
+        "owner_id": f"-{VK_GROUP_ID}",
+        "message": text
+    }
+    response = requests.post(vk_api_url, data=params)
+
+    if response.ok:
+        print("Успешно отправлено в ВКонтакте")
+    else:
+        print("Ошибка при отправке в ВКонтакте:", response.text)
 
 if __name__ == "__main__":
-    app = ApplicationBuilder().token(BOT_TOKEN).build()
-    app.add_handler(MessageHandler(filters.UpdateType.CHANNEL_POST, forward_to_vk))
+    app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+    handler = MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message)
+    app.add_handler(handler)
+    print("Бот запущен")
     app.run_polling()
