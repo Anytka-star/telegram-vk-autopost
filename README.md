@@ -1,1 +1,1 @@
-# telegram-vk-autopost
+# Telegram to VK Autoposter
